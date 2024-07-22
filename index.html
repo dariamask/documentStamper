@@ -43,7 +43,8 @@
         await renderPdf(canvas, pdf);
         canvas.addEventListener('mousedown', async function (e) {
             // перерисовываем pdf с нуля, на случай если уже был нарисован прямоугольник
-            renderPdf(canvas, pdf).then(() => setTimeout(() => getCursorPosition(canvas, e), 10));
+            await renderPdf(canvas, pdf);
+            getCursorPosition(canvas, e);
         });
 
         async function renderPdf(canvas, pdf) {
@@ -65,7 +66,7 @@
                 viewport: viewport
             };
 
-            await page.render(renderContext);
+            await page.render(renderContext).promise;
             console.log('Page rendered');
         }
         function getCursorPosition(canvas, event) {
