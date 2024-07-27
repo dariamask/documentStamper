@@ -6,7 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://mozilla.github.io/pdf.js/build/pdf.mjs" type="module"></script>
 
-    //обработчик загрузки файла пользователем
     <script>
         document.addEventListener("DOMContentLoaded", function () {
             var fileInput = document.getElementById("fileInput");
@@ -44,13 +43,17 @@
                 });
             }
 
-            async function renderPdf(canvas, pdf) {
-                var pageNumber = 1;
+            async function renderPdf(canvas, pdf, pageNumber = 1) {
                 const page = await pdf.getPage(pageNumber);
                 console.log('Page loaded');
 
-                var scale = 1.5;
-                var viewport = page.getViewport({ scale: scale });
+                var container = document.getElementById('canvas-container');
+                const containerWidth = container.clientWidth;
+
+                var viewport = page.getViewport({ scale: 1 });
+
+                const scale = containerWidth / viewport.width;
+                viewport = page.getViewport({ scale: scale });
 
                 canvas.height = viewport.height;
                 canvas.width = viewport.width;
@@ -65,6 +68,8 @@
             }
 
             function getCursorPosition(canvas, event) {
+                const dateInput = document.getElementById("dateInput").value;
+
                 const rect = canvas.getBoundingClientRect();
                 const x = event.clientX - rect.left;
                 const y = event.clientY - rect.top;
@@ -76,33 +81,104 @@
                 window.coordinates.push({ x: x, y: y });
 
                 var ctx = canvas.getContext('2d');
+                ctx.font = "16px Arial";
+                ctx.fillStyle = "blue";
+
+                const stampText1 = "Важный документ";
+                const stampText2 = "Входящий от";
+                const maxWidth = Math.max(ctx.measureText(stampText1).width, ctx.measureText(stampText2).width, ctx.measureText(dateInput).width);
+
                 ctx.beginPath();
-                ctx.rect(x - 10, y - 10, 20, 20);
+                ctx.rect(x, y, maxWidth + 20, 70);
                 ctx.stroke();
+
+                ctx.fillText(stampText1, x + 10, y + 20);
+                ctx.fillText(stampText2, x + 10, y + 40);
+                ctx.fillText(dateInput, x + 10, y + 60);
             }
         });
+        
     </script>
 
     <title>Document</title>
 
     <style>
         body {
+            font-family: Arial, sans-serif;
             display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 20px;
+            background-color: #f4f4f9;
+            margin: 0;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+
+        #left-column, #right-column {
+            background: #fff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            border-radius: 8px;
+            margin: 10px;
         }
 
         #left-column {
-            width: 50%;
-            padding: 10px;
+            flex: 1;
+            max-width: 400px;
         }
 
         #right-column {
-            width: 50%;
-            padding: 10px;
+            flex: 2;
+            max-width: 800px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
-        #the-canvas {
-            border-width: 1px;
-            border-style: dashed;
+        h3 {
+            color: #333;
+        }
+
+        input[type="file"], input[type="date"], input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            background: #07671f;
+            border: none;
+            border-radius: 4px;
+            color: #fff;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background: #00b33f;
+        }
+
+        #canvas-container {
+            width: 100%;
+            height: 800px;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 10px;
+            background-color: #fff;
+        }
+
+        canvas {
+            width: 100%;
+            border: 1px dashed #ccc;
+            border-radius: 8px;
         }
     </style>
 </head>
@@ -110,62 +186,56 @@
 <body>
 
     <div id="left-column">
+        <h3>Выбор файла для регистрации</h3>
+        <input type="file" id="fileInput">
 
-        <h3>
-            Выбор файла для регистрации</h2>
-            <input type="file" id="fileInput">
+        <h3>Выбор даты:</h3>
+        <input type="date" id="dateInput">
 
-            <h3>
-                Выбор даты:</h2>
-                <input type="date" id="dateInput">
+        <h3>Выбор порядкового номера:</h3>
+        <input type="text" id="numberInput">
+        <br />
 
-                <h3>
-                    Выбор порядкого номера:</h2>
-                    <input type="text" id="numberInput">
-                    <br />
+        <button id="submitButton">Submit</button>
+        <script>
+            function submitForm() {
+                document.getElementById('submitButton').addEventListener('click', async function () {
+                });
 
-                    <button id="submitButton">Submit</button>
-                    <script>
-                        //import * as myModule from "module.js";
-                        function submitForm() {
+                var dateInput = document.getElementById('dateInput');
+                var numberInput = document.getElementById('numberInput');
 
-                            document.getElementById('submitButton').addEventListener('click', async function () {
-                            });
+                var fileInput = document.getElementById('fileInput');
+                var file = fileInput.files[0];
+                var reader = new FileReader();
 
-                            var dateInput = document.getElementById('dateInput');
-                            var numberInput = document.getElementById('numberInput');
+                reader.onloadend = function () {
+                    var data = {
+                        date: dateInput.value,
+                        number: numberInput.value,
+                        coordinates: window.coordinates,
+                        file: reader.result.split(',')[1],
+                        fileType: file.type,
+                        fileName: file.name
+                    };
+                    var jsonData = JSON.stringify(data);
+                    console.log(jsonData);
+                };
 
-                            var fileInput = document.getElementById('fileInput');
-                            var file = fileInput.files[0];
-                            var reader = new FileReader();
+                reader.readAsDataURL(file);
+            }
 
-                            reader.onloadend = function () {
-
-                                var data = {
-                                    date: dateInput.value,
-                                    number: numberInput.value,
-                                    coordinates: window.coordinates,
-                                    file: reader.result.split(',')[1],
-                                    fileType: file.type,
-                                    fileName: file.name
-
-                                };
-                                var jsonData = JSON.stringify(data);
-                                console.log(jsonData);
-                            };
-
-                            reader.readAsDataURL(file);
-                        }
-
-                        document.getElementById('submitButton').addEventListener('click', submitForm);
-                    </script>
-
+            document.getElementById('submitButton').addEventListener('click', submitForm);
+        </script>
     </div>
 
     <div id="right-column">
-        <canvas id="the-canvas"></canvas>
+        <div id="canvas-container">
+            <canvas id="the-canvas"></canvas>
+        </div>
     </div>
 
     <script src="https://code.jquery.com/jquery-3.7.1.js"></script>
 </body>
+
 </html>
