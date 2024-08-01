@@ -1,6 +1,10 @@
 ﻿// Please see documentation at https://learn.microsoft.com/aspnet/core/client-side/bundling-and-minification
 // for details on configuring this project to bundle and minify static web assets.
 
+import * as pdfjsLib from 'https://mozilla.github.io/pdf.js/build/pdf.mjs';
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://mozilla.github.io/pdf.js/build/pdf.worker.mjs';
+
 document.addEventListener("DOMContentLoaded", function () {
     var fileInput = document.getElementById("fileInput");
 
@@ -19,11 +23,10 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     async function displayPDF(arrayBuffer) {
-        var { pdfjsLib } = globalThis;
-
-        pdfjsLib.GlobalWorkerOptions.workerSrc = '//mozilla.github.io/pdf.js/build/pdf.worker.mjs';
 
         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        console.log('PDF loaded');
+
         console.log('PDF loaded');
 
         var canvas = document.getElementById('the-canvas');

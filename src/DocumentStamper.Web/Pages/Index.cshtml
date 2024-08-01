@@ -4,7 +4,42 @@
     ViewData["Title"] = "Home page";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
-</div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Document</title>
+
+</head>
+
+<body>
+    <div id="main-content">
+            <form id="form" onsubmit="submitForm()" method="post">
+                <div id="left-column">
+
+                    <label>Выбор файла для регистрации</label>
+                    <input type="file" id="fileInput">
+
+                    <label>Выбор даты:</label>
+                    <input type="date" id="dateInput">
+
+                    <label>Выбор порядкового номера:</label>
+                    <input type="text" id="numberInput">
+                    <br />
+
+                    <input type="submit" id="submitButton" value="Submit">
+                </div>
+            </form>
+
+        <div id="right-column">
+            <div id="canvas-container">
+                <canvas id="the-canvas"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="/js/site.js"></script>
+</body>
+</html>
