@@ -5,32 +5,63 @@ import * as pdfjsLib from 'https://mozilla.github.io/pdf.js/build/pdf.mjs';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://mozilla.github.io/pdf.js/build/pdf.worker.mjs';
 
+var ns = 'http://www.w3.org/2000/svg'
+
+//правка от 02.08.2024 добавить алерт для любой даты, кроме сегодня
 document.addEventListener("DOMContentLoaded", function () {
+    const dateInput = document.getElementById("dateInput");
+
+    dateInput.addEventListener("change", function () {
+        const selectedDate = new Date(dateInput.value);
+        const today = new Date();
+
+        if (selectedDate.getFullYear() !== today.getFullYear() ||
+            selectedDate.getMonth() !== today.getMonth() ||
+            selectedDate.getDate() !== today.getDate()) {
+            alert("Не сегодня!");
+        }
+    });
+});
+
+document.addEventListener("DOMContentLoaded", function ()
+{
+
     var fileInput = document.getElementById("fileInput");
+    const reader = new FileReader();
 
     fileInput.addEventListener("change", function (event) {
         var file = event.target.files[0];
-        if (file.type === "application/pdf") {
-            var reader = new FileReader();
+
+        if (file.type !== "application/pdf" || !file.name.endsWith(".pdf")) {
+            console.log("Not a PDF");
+            alert("Пожалуйста, загрузите файл формата PDF.");
+            fileInput.value = "";
+        } else {
             reader.onload = function (e) {
-                var arrayBuffer = e.target.result;
-                displayPDF(arrayBuffer);
+                const arrayBuffer = e.target.result;
+                const uint8Array = new Uint8Array(arrayBuffer);
+                const signature = String.fromCharCode(...uint8Array.subarray(0, 5));
+                if (signature !== '%PDF-') {
+                    alert("Файл PDF повреждён.");
+                } else {
+                    displayPDF(arrayBuffer);
+                }
             };
             reader.readAsArrayBuffer(file);
-        } else {
-            console.log("Please upload a PDF file.");
         }
     });
 
     async function displayPDF(arrayBuffer) {
-
         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-        console.log('PDF loaded');
+
+
+        //var draw = SVG().addTo('#stamp-content');
+        //var image = draw.image('/svg/StampBWUst.svg').size(200, 100);
 
         console.log('PDF loaded');
 
-        var canvas = document.getElementById('the-canvas');
-        var context = canvas.getContext('2d');
+        const canvas = document.getElementById('the-canvas');
+        const context = canvas.getContext('2d');
 
         context.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -38,25 +69,27 @@ document.addEventListener("DOMContentLoaded", function () {
 
         canvas.addEventListener('mousedown', async function (e) {
             await renderPdf(canvas, pdf);
-            getCursorPosition(canvas, e);
+            setStampPreview(canvas, e);
         });
     }
 
     async function renderPdf(canvas, pdf, pageNumber = 1) {
         const page = await pdf.getPage(pageNumber);
 
-        var container = document.getElementById('canvas-container');
+        //TODO: clear canvas image
+
+        const container = document.getElementById('canvas-container');
         const containerWidth = container.clientWidth;
 
-        var viewport = page.getViewport({ scale: 1 });
+        let viewport = page.getViewport({ scale: 1.5 });
 
-        const scale = containerWidth / viewport.width;
-        viewport = page.getViewport({ scale: scale });
+        //const scale = containerWidth / viewport.width;
+        //viewport = page.getViewport({ scale: scale });
 
         canvas.height = viewport.height;
         canvas.width = viewport.width;
 
-        var renderContext = {
+        const renderContext = {
             canvasContext: canvas.getContext('2d'),
             viewport: viewport
         };
@@ -65,7 +98,7 @@ document.addEventListener("DOMContentLoaded", function () {
         console.log('Page rendered');
     }
 
-    function getCursorPosition(canvas, event) {
+    function setStampPreview(canvas, event) {
         const dateInput = document.getElementById("dateInput").value;
 
         const rect = canvas.getBoundingClientRect();
@@ -73,40 +106,42 @@ document.addEventListener("DOMContentLoaded", function () {
         const y = event.clientY - rect.top;
         console.log("x: " + x + " y: " + y);
 
-        if (!window.coordinates) {
-            window.coordinates = [];
-        }
-        window.coordinates.push({ x: x, y: y });
+        window.coordinates = { x: x, y: y };
 
-        var ctx = canvas.getContext('2d');
-        ctx.font = "16px Arial";
-        ctx.fillStyle = "blue";
-
-        const stampText1 = "Важный документ";
-        const stampText2 = "Входящий от";
-        const maxWidth = Math.max(ctx.measureText(stampText1).width, ctx.measureText(stampText2).width, ctx.measureText(dateInput).width);
+        const ctx = canvas.getContext('2d');
 
         ctx.beginPath();
-        ctx.rect(x, y, maxWidth + 20, 70);
+        ctx.rect(x, y, 10, 10);
         ctx.stroke();
 
-        ctx.fillText(stampText1, x + 10, y + 20);
-        ctx.fillText(stampText2, x + 10, y + 40);
-        ctx.fillText(dateInput, x + 10, y + 60);
+
+        return;
+
+        var img = new Image();
+        
+
+        img.width = 50;
+        img.onload = function () {
+            ctx.drawImage(img, x, y, 100, 50);
+        }
+        
+        img.src = "/svg/StampBWUst.svg";
+        
+
     }
 
     function submitForm(event) {
         event.preventDefault();
 
-        var dateInput = document.getElementById('dateInput');
-        var numberInput = document.getElementById('numberInput');
+        const dateInput = document.getElementById('dateInput');
+        const numberInput = document.getElementById('numberInput');
 
-        var fileInput = document.getElementById('fileInput');
-        var file = fileInput.files[0];
-        var reader = new FileReader();
+        const fileInput = document.getElementById('fileInput');
+        const file = fileInput.files[0];
+        const reader = new FileReader();
 
         reader.onloadend = function () {
-            var data = {
+            const data = {
                 date: dateInput.value,
                 number: numberInput.value,
                 coordinates: window.coordinates,
@@ -114,13 +149,13 @@ document.addEventListener("DOMContentLoaded", function () {
                 fileType: file.type,
                 fileName: file.name
             };
-            var jsonData = JSON.stringify(data);
+            const jsonData = JSON.stringify(data);
             console.log(jsonData);
         };
 
         reader.readAsDataURL(file);
     }
 
-    var form = document.getElementById('form');
+    const form = document.getElementById('form');
     form.addEventListener('submit', submitForm);
 });
