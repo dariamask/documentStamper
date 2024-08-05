@@ -7,6 +7,8 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://mozilla.github.io/pdf.js/build
 
 var ns = 'http://www.w3.org/2000/svg'
 
+window.stamperState = window.stamperState ?? {};
+
 //правка от 02.08.2024 добавить алерт для любой даты, кроме сегодня
 document.addEventListener("DOMContentLoaded", function () {
     const dateInput = document.getElementById("dateInput");
@@ -18,6 +20,8 @@ document.addEventListener("DOMContentLoaded", function () {
         if (selectedDate.getFullYear() !== today.getFullYear() ||
             selectedDate.getMonth() !== today.getMonth() ||
             selectedDate.getDate() !== today.getDate()) {
+
+            // create new div with error message and toggle class to change visibility
             alert("Не сегодня!");
         }
     });
@@ -37,14 +41,22 @@ document.addEventListener("DOMContentLoaded", function ()
             alert("Пожалуйста, загрузите файл формата PDF.");
             fileInput.value = "";
         } else {
-            reader.onload = function (e) {
+            reader.onload = async function (e) {
                 const arrayBuffer = e.target.result;
                 const uint8Array = new Uint8Array(arrayBuffer);
                 const signature = String.fromCharCode(...uint8Array.subarray(0, 5));
                 if (signature !== '%PDF-') {
                     alert("Файл PDF повреждён.");
                 } else {
-                    displayPDF(arrayBuffer);
+                    try {
+                        await displayPDF(arrayBuffer);
+                    } catch (e) {
+                        if (!(e instanceof pdfjsLib.InvalidPDFException))
+                            throw e;
+
+                        // TODO #5 process rendering errors with user-friendly error messages
+                        alert("Файл PDF повреждён: " + e);
+                    }
                 }
             };
             reader.readAsArrayBuffer(file);
@@ -61,30 +73,27 @@ document.addEventListener("DOMContentLoaded", function ()
         console.log('PDF loaded');
 
         const canvas = document.getElementById('the-canvas');
+
+        if (window.stamperState.listener)
+            canvas.removeEventListener('mousedown', window.stamperState.listener);
+
         const context = canvas.getContext('2d');
 
         context.clearRect(0, 0, canvas.width, canvas.height);
 
         await renderPdf(canvas, pdf);
 
-        canvas.addEventListener('mousedown', async function (e) {
+        const listener = async function (e) {
             await renderPdf(canvas, pdf);
             setStampPreview(canvas, e);
-        });
+        }
+        canvas.addEventListener('mousedown', listener);
+        window.stamperState.listener = listener;
     }
 
     async function renderPdf(canvas, pdf, pageNumber = 1) {
         const page = await pdf.getPage(pageNumber);
-
-        //TODO: clear canvas image
-
-        const container = document.getElementById('canvas-container');
-        const containerWidth = container.clientWidth;
-
-        let viewport = page.getViewport({ scale: 1.5 });
-
-        //const scale = containerWidth / viewport.width;
-        //viewport = page.getViewport({ scale: scale });
+        let viewport = page.getViewport({ scale: 1 });
 
         canvas.height = viewport.height;
         canvas.width = viewport.width;
@@ -96,33 +105,43 @@ document.addEventListener("DOMContentLoaded", function ()
 
         await page.render(renderContext).promise;
         console.log('Page rendered');
+
+        // TODO #9 ensure rendering is awaited to completion before exiting the function!!! important
+        await setTimeout(() => console.log('Page rendered... most likely =('), 100);
     }
 
     function setStampPreview(canvas, event) {
+        // TODO #10 add date preview on csv stamp image
         const dateInput = document.getElementById("dateInput").value;
 
+        const stampW = 200;
+        const stampH = 100;
+
         const rect = canvas.getBoundingClientRect();
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
+
+        var scale = canvas.width / canvas.clientWidth;
+
+        // TODO refactor: calculating coordinates for stamp not to get out of canvas bounds
+        let x = (event.clientX - rect.left) * scale;
+        let y = (event.clientY - rect.top) * scale;
+
+        x = x - stampW / 2 < 0 ? stampW / 2 : x;
+        y = y - stampH / 2 < 0 ? stampH / 2 : y;
+
+        x = x + stampW / 2 > canvas.width ? canvas.width - stampW / 2 : x;
+        y = y + stampH / 2 > canvas.heigth ? canvas.heigth - stampH / 2 : y;
+
         console.log("x: " + x + " y: " + y);
 
-        window.coordinates = { x: x, y: y };
+        window.stamperState.coordinates = { x: x - stampW / 2, y: y - stampH / 2 };
 
         const ctx = canvas.getContext('2d');
 
-        ctx.beginPath();
-        ctx.rect(x, y, 10, 10);
-        ctx.stroke();
-
-
-        return;
-
         var img = new Image();
-        
 
         img.width = 50;
         img.onload = function () {
-            ctx.drawImage(img, x, y, 100, 50);
+            ctx.drawImage(img, x - stampW / 2, y - stampH / 2, stampW, stampH);
         }
         
         img.src = "/svg/StampBWUst.svg";
@@ -144,7 +163,7 @@ document.addEventListener("DOMContentLoaded", function ()
             const data = {
                 date: dateInput.value,
                 number: numberInput.value,
-                coordinates: window.coordinates,
+                coordinates: window.stamperState?.coordinates,
                 file: reader.result.split(',')[1],
                 fileType: file.type,
                 fileName: file.name
