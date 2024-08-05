@@ -1,0 +1,51 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Home page";
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/svg.js/3.2.4/svg.min.js"></script>
+    <title>Document</title>
+
+</head>
+
+<body>
+    
+
+    <div id="stamp-content">
+        
+    </div>
+
+    <div id="main-content">
+        <form id="form">
+            <div id="left-column">
+
+                <label>Выбор файла для регистрации</label>
+                <input type="file" id="fileInput" accept="application/pdf">
+
+                <label>Выбор даты:</label>
+                <input type="date" id="dateInput">
+
+                <label>Выбор порядкового номера:</label>
+                <input type="text" id="numberInput">
+                <br />
+
+                <input type="submit" id="submitButton" value="Сохранить документ">
+            </div>
+        </form>
+
+        <div id="right-column">
+            <div id="canvas-container">
+                <canvas id="the-canvas"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="/js/site.js"></script>
+</body>
+</html>
