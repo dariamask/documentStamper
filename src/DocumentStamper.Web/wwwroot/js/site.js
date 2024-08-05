@@ -31,9 +31,8 @@ document.addEventListener("DOMContentLoaded", function ()
 {
 
     var fileInput = document.getElementById("fileInput");
-    const reader = new FileReader();
 
-    fileInput.addEventListener("change", function (event) {
+    fileInput.addEventListener("change", async function (event) {
         var file = event.target.files[0];
 
         if (file.type !== "application/pdf" || !file.name.endsWith(".pdf")) {
@@ -41,27 +40,33 @@ document.addEventListener("DOMContentLoaded", function ()
             alert("Пожалуйста, загрузите файл формата PDF.");
             fileInput.value = "";
         } else {
-            reader.onload = async function (e) {
-                const arrayBuffer = e.target.result;
-                const uint8Array = new Uint8Array(arrayBuffer);
-                const signature = String.fromCharCode(...uint8Array.subarray(0, 5));
-                if (signature !== '%PDF-') {
-                    alert("Файл PDF повреждён.");
-                } else {
-                    try {
-                        await displayPDF(arrayBuffer);
-                    } catch (e) {
-                        if (!(e instanceof pdfjsLib.InvalidPDFException))
-                            throw e;
+            const arrayBuffer = await ReadFileAsync(reader => reader.readAsArrayBuffer(file));
+            const uint8Array = new Uint8Array(arrayBuffer);
+            const signature = String.fromCharCode(...uint8Array.subarray(0, 5));
+            if (signature !== '%PDF-') {
+                alert("Файл PDF повреждён.");
+                return;
+            }
 
-                        // TODO #5 process rendering errors with user-friendly error messages
-                        alert("Файл PDF повреждён: " + e);
-                    }
-                }
-            };
-            reader.readAsArrayBuffer(file);
+            try {
+                await displayPDF(arrayBuffer);
+            } catch (e) {
+                if (!(e instanceof pdfjsLib.InvalidPDFException))
+                    throw e;
+
+                // TODO #5 process rendering errors with user-friendly error messages
+                alert("Файл PDF повреждён: " + e);
+            }
         }
     });
+
+    function ReadFileAsync(readerAction) {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            readerAction(reader);
+        });
+    }
 
     async function displayPDF(arrayBuffer) {
         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -80,6 +85,8 @@ document.addEventListener("DOMContentLoaded", function ()
         const context = canvas.getContext('2d');
 
         context.clearRect(0, 0, canvas.width, canvas.height);
+
+        // TODO clear selected coordinates
 
         await renderPdf(canvas, pdf);
 
@@ -149,7 +156,7 @@ document.addEventListener("DOMContentLoaded", function ()
 
     }
 
-    function submitForm(event) {
+    async function submitForm(event) {
         event.preventDefault();
 
         const dateInput = document.getElementById('dateInput');
@@ -157,22 +164,19 @@ document.addEventListener("DOMContentLoaded", function ()
 
         const fileInput = document.getElementById('fileInput');
         const file = fileInput.files[0];
-        const reader = new FileReader();
 
-        reader.onloadend = function () {
-            const data = {
-                date: dateInput.value,
-                number: numberInput.value,
-                coordinates: window.stamperState?.coordinates,
-                file: reader.result.split(',')[1],
-                fileType: file.type,
-                fileName: file.name
-            };
-            const jsonData = JSON.stringify(data);
-            console.log(jsonData);
+        const encodedFile = await ReadFileAsync(reader => reader.readAsDataURL(file));
+
+        const data = {
+            date: dateInput.value,
+            number: numberInput.value,
+            coordinates: window.stamperState?.coordinates,
+            file: encodedFile.split(',')[1],
+            fileType: file.type,
+            fileName: file.name
         };
-
-        reader.readAsDataURL(file);
+        const jsonData = JSON.stringify(data);
+        console.log(jsonData);
     }
 
     const form = document.getElementById('form');
